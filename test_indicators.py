@@ -67,4 +67,15 @@ plt.legend()
 
 #%% 
 
+from trading_indicator import TradingIndicator
+ind = TradingIndicator(tesla_data)
+rsi=ind.rsi()
 
+fig, ax1 = plt.subplots()
+ax1.plot(rsi, label="RSI Index", color="orange")
+#ax1.plot(so['%D'], label="%D")
+ax2 = ax1.twinx() 
+ax2.plot(so['Adj Close'], label="Adj Close")
+ax1.axhline(30, linestyle='--', color="r")
+ax1.axhline(70, linestyle="--", color="r")
+fig.legend()
