@@ -94,20 +94,28 @@ df2["sell"] = (df2["sign"] < df2["sign"].shift(1))*1
 #plt.plot(stock_new)
 #%%¨
 
+
+
 def prepare_input_data(data_all, security):
     data_all ['Close' ] = (data_all ['bidClose'] + data_all ['askClose'] ) / 2
-    df = data.pivot('time', 'symbol', 'Close')
-    stock = df["STOCK1"].to_frame()
+    df = data_all.pivot('time', 'symbol', 'Close')
+    stock = df[security].to_frame()
     stock.index=pd.to_datetime(stock.index)
     stock_new=stock.resample('1H').last() #
     stock_new=stock_new.dropna()
     ind = TradingIndicator(stock_new)
 
-    rsi=ind.rsi(9, "STOCK1")
-    df2 = ind.macd(12, 26, 9, "STOCK1")
+    rsi=ind.rsi(9, security)
+    df2 = ind.macd(12, 26, 9, security)
     df2["rsi"]=rsi
     signal = df2["signal"]
     macd= df2["macd"]
+    
+    df2["diff"]=(signal-macd)
+    df2["sign"] = np.sign(df2["diff"])
+    df2["buy"] = (df2["sign"] > df2["sign"].shift(1))*1
+    df2["sell"] = (df2["sign"] < df2["sign"].shift(1))*1
+    return df2
     
 
 
@@ -132,5 +140,29 @@ def backtest_macd(df, stock):
     return returns
 
 
+def main_trading(data_all):
+    bond_weights = 0.4
+    stock_weights = 0.6
+    
+    
 
-ret=backtest_macd(df2, "STOCK1")
+security="STOCK2"
+df3=prepare_input_data(data, security)
+ret=backtest_macd(df3, security)
+
+
+
+
+#%%
+buys = [ret[x][1] for x in range(len(ret))]
+sell = [ret[x][2] for x in range(len(ret))]
+
+
+
+
+buys_data = df3.loc[buys]
+sell_data = df3.loc[buys]
+
+#plt.plot(df3[security], color="orange")
+#plt.scatter(buys, buys_data[security] ,color="b")
+#plt.scatter(sell, sell_data[security] ,color="r")
