@@ -6,7 +6,8 @@ Created on Tue Mar  1 20:11:50 2022
 @author: johanna
 """
 import sys
-sys.path.append(".")
+#sys.path.append(".")
+print(sys.path)
 
 import pandas as ps
 from pandas_datareader import data as pdr
