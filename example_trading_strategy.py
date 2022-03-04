@@ -7,7 +7,7 @@ Created on Thu Mar  3 22:28:51 2022
 """
 # Strategy using rsi & macd
 import sys
-sys.path.append(".")
+#sys.path.append(".")
 
 import pandas as pd
 from pandas_datareader import data as pdr
@@ -87,6 +87,9 @@ buys = [ret[x][1] for x in range(len(ret))]
 sell = [ret[x][2] for x in range(len(ret))]
 
 #%%
+
+
+
 buys_data = df.loc[buys]
 sell_data = df.loc[buys]
 
@@ -100,5 +103,6 @@ plt.scatter(sell, sell_data["Adj Close"] ,color="r")
 
 
 
+#%%
 
 
