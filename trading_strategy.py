@@ -1,23 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Fri Mar  4 10:01:19 2022
+Created on Fri Mar  4 11:53:34 2022
 
 @author: johanna
 """
-
 import linchackathon as ls
 import pandas as pd
 import matplotlib.pyplot as plt
-data = pd.DataFrame(ls.getStockHistory('all', 30) )
-
 #%%
-data ['Close' ] = (data ['bidClose'] + data ['askClose'] ) / 2
-df = data.pivot('time', 'symbol', 'Close')
-#data [ ’ ] = ( data [ ’ bi dCl o s e ’ ] + data [ ’ a s kCl o s e ’ ] ) / 2
-#plt.plot(df["STOCK1"])
-#df = df.groupby([df.index.dt.date]).mean()
-#%% Chech Stock 
 class TradingIndicator:
     
     # Obs time_series_data must be a df!
@@ -78,43 +69,68 @@ class TradingIndicator:
         rsi = ma_up / ma_down
         rsi = 100 - (100/(1 + rsi))
         return rsi
-
 #%%
-%%
-# Chandelier exit snippet
-
-
- # high_low = df['High'] - df['Low']
- #   high_close = np.abs(df['High'] - df['Close'].shift())
- #   low_close = np.abs(df['Low'] - df['Close'].shift())
- #   ranges = pd.concat([high_low, high_close, low_close], axis=1)
- #   true_range = np.max(ranges, axis=1)
- #   ATR = true_range.rolling(22).sum()/14
- #   df['ATR'] = ATR
-
-    # Chandelier exit
-
-    ## for long position
- #   df["Max_high"] = df.rolling(22, min_periods=22)['High'].max()  
- #   df["Ch_exit_long"] = df["Max_high"] - df["ATR"] * 3
-    
-    ## for short position
-  #  df["Lowest_low"] = df.rolling(22, min_periods=22)['Low'].min()  
-  #  df["Ch_exit_short"] = df["Lowest_low"] + df["ATR"] * 3
-
+data = pd.DataFrame(ls.getStockHistory('all', 100) )
 #%%
-import sys
-from datetime import datetime 
-#from trading_indicator import TradingIndicator
-
+import numpy as np
+data ['Close' ] = (data ['bidClose'] + data ['askClose'] ) / 2
+df = data.pivot('time', 'symbol', 'Close')
 stock = df["STOCK1"].to_frame()
-ind = TradingIndicator(stock)
+stock.index=pd.to_datetime(stock.index)
+stock_new=stock.resample('1H').last() #
+stock_new=stock_new.dropna()
+ind = TradingIndicator(stock_new)
+
 rsi=ind.rsi(9, "STOCK1")
 df2 = ind.macd(12, 26, 9, "STOCK1")
 df2["rsi"]=rsi
-stock.index=pd.to_datetime(stock.index)
-test=stock.resample('1H').mean()
+signal = df2["signal"]
+macd= df2["macd"]
+#%%
+df2["diff"]=(signal-macd)
+df2["sign"] = np.sign(df2["diff"])
+df2["buy"] = (df2["sign"] > df2["sign"].shift(1))*1
+df2["sell"] = (df2["sign"] < df2["sign"].shift(1))*1
+#plt.plot(stock_new)
+#%%¨
+
+def prepare_input_data(data_all, security):
+    data_all ['Close' ] = (data_all ['bidClose'] + data_all ['askClose'] ) / 2
+    df = data.pivot('time', 'symbol', 'Close')
+    stock = df["STOCK1"].to_frame()
+    stock.index=pd.to_datetime(stock.index)
+    stock_new=stock.resample('1H').last() #
+    stock_new=stock_new.dropna()
+    ind = TradingIndicator(stock_new)
+
+    rsi=ind.rsi(9, "STOCK1")
+    df2 = ind.macd(12, 26, 9, "STOCK1")
+    df2["rsi"]=rsi
+    signal = df2["signal"]
+    macd= df2["macd"]
+    
+
+
+def backtest_macd(df, stock):
+    long=False
+    enter_price = 0
+    close_price = 0
+    enter_date = 0
+    exit_date = 0
+    returns = []
+    for i in range(len(df)):
+        if (df["buy"].iloc[i]==1 & long==False & (df["rsi"].iloc[i]<40)):
+            long = True
+            enter_price = df[stock].iloc[i]
+            enter_date= df.index[i]
+        elif(df["sell"].iloc[i]==1 & long==True & (df["rsi"].iloc[i]>60)):
+            stop_price = df[stock].iloc[i]
+            exit_date=df.index[i]
+            returns.append([(stop_price-enter_price)/enter_price, enter_date, exit_date])
+            long=False
+            
+    return returns
 
 
 
-
+ret=backtest_macd(df2, "STOCK1")
