@@ -69,8 +69,51 @@ class TradingIndicator:
         rsi = ma_up / ma_down
         rsi = 100 - (100/(1 + rsi))
         return rsi
+    
+#%%
+def prepare_input_data(df, security):
+    df['Close' ] = (df ['bidClose'] + df ['askClose'] ) / 2
+    df['High']=(data['bidHigh']+ data['askHigh'])/2
+    df['Low']=(data['bidLow']+ data['bidLow'])/2
+    
+    high_close = np.abs(df['High']-df['Close'].shift())
+    low_close = np.abs(df['Low']-df['Close'].shift())
+    high_low = df['High']-df['Low']
+    ranges = pd.concat([high_low, high_close, low_close], axis=1)
+    true_range = np.max(ranges, axis=1)
+    atr = true_range.rolling(14).sum()/14
+    df["ATR"]=atr
+    
+    df["Max_high"] = df["High"].rolling(22, min_periods=22).max()  
+    df["Ch_exit_long"] = df["Max_high"] - df["ATR"] * 3
+    return df
+
+    
+#%%
+    stock_new=stock_new.dropna()
+    ind = TradingIndicator(stock_new)
+
+    rsi=ind.rsi(9, security)
+    df2 = ind.macd(12, 26, 9, security)
+    df2["rsi"]=rsi
+    signal = df2["signal"]
+    macd= df2["macd"]
+    
+    df2["diff"]=(signal-macd)
+    df2["sign"] = np.sign(df2["diff"])
+    df2["buy"] = (df2["sign"] > df2["sign"].shift(1))*1
+    df2["sell"] = (df2["sign"] < df2["sign"].shift(1))*1
+    return df2
+
+
 #%%
 data = pd.DataFrame(ls.getStockHistory('all', 100) )
+#%%
+ticker="BOND1"
+df = data[data["symbol"]==ticker]
+#%%
+
+df2=prepare_input_data(df, ticker)
 #%%
 import numpy as np
 data ['Close' ] = (data ['bidClose'] + data ['askClose'] ) / 2
@@ -193,11 +236,10 @@ def main_trading(data_all, securities):
     data_all ['Close' ] = (data_all ['bidClose'] + data_all ['askClose'] ) / 2
     df = data_all.pivot('time', 'symbol', 'Close')
     for i in range(0,2):
-        security = securities[i]
-        security_data = prepare_input_data(data_all, security)
-        #trade(security_data, security, weights)
-        #mean=np.mean(ret[0])
-        #print(mean)
+        security = securities[0]
+        security_data = prepare_input_data(df, security)
+        trade(security_data, security, weights)
+
     # Trade stocks
 
 #%%
@@ -221,7 +263,6 @@ def main (securities):
         main_trading(data, securities)
 #%%
 main_trading(data.iloc[:10000], securities)
-    
     
  #%%
 
