@@ -5,7 +5,7 @@ Created on Fri Mar  4 11:53:34 2022
 
 @author: johanna
 """
-import linchackathon as ls
+import linchackathon as lh
 import pandas as pd
 import matplotlib.pyplot as plt
 #%%
@@ -127,11 +127,11 @@ def backtest_macd(df, stock):
     exit_date = 0
     returns = []
     for i in range(len(df)):
-        if (df["buy"].iloc[i]==1 & long==False & (df["rsi"].iloc[i]<40)):
+        if (df["buy"].iloc[i]==1 & long==False & (df["rsi"].iloc[i]<70)):
             long = True
             enter_price = df[stock].iloc[i]
             enter_date= df.index[i]
-        elif(df["sell"].iloc[i]==1 & long==True & (df["rsi"].iloc[i]>60)):
+        elif(df["sell"].iloc[i]==1 & long==True & (df["rsi"].iloc[i]>30)):
             stop_price = df[stock].iloc[i]
             exit_date=df.index[i]
             returns.append([(stop_price-enter_price)/enter_price, enter_date, exit_date])
@@ -140,11 +140,70 @@ def backtest_macd(df, stock):
     return returns
 
 
-def main_trading(data_all):
+def trade(df, stock, weights):
+    long=False
+    enter_price = 0
+    close_price = 0
+    enter_date = 0
+    exit_date = 0
+    returns = []
+    if (df["buy"].iloc[-1]==1 & long==False & (df["rsi"].iloc[-1]<70)):
+        long = True
+        weight = weights[stock]
+        amount = lh.getSaldo()*weight
+        nbr_share = (amount/df[stock].iloc[-1]).round()
+        lh.buyStock(stock, nbr_share)
+        enter_price = df[stock].iloc[-1]
+        enter_date= df.index[-1]
+        
+    elif(df["sell"].iloc[-1]==1 & long==True & (df["rsi"].iloc[-1]>30)):
+        lh.sellStock(stock, nbr_share)
+        stop_price = df[stock].iloc[-1]
+        exit_date=df.index[-1]
+        returns.append([(stop_price-enter_price)/enter_price, enter_date, exit_date])
+        long=False
+            
+    return returns
+
+
+def main_trading(data_all, securities):
     bond_weights = 0.4
     stock_weights = 0.6
+    init_cash = 100000
+    bond_cash = bond_weights*init_cash
+    stock_cash = stock_weights*init_cash
+    weightA = 0.175 # Top performing, Stock 7, 1, 3, 4
+    weightB = 0.05 # avg performing # Stock 2, 10, 6, 5
+    weightC = 0.01 # 9, 8
+    
+    weightD = 0.3 # Bond2
+    weightE = 0.1 # Bond1
+    weights = {"STOCK1":weightA, "STOCK7":weightA, "STOCK3":weightA, "STOCK4": weightA, 
+                   "STOCK2": weightB, "STOCK10": weightB, "STOCK6": weightB, "STOCK5": weightB, 
+                   "STOCK9":weightC, "STOCK8":weightC, "BOND1":weightE, "BOND2":weightD}
+
+    # Trade bonds
+    ret_total = []
+    for i in range(0,2):
+        security = securities[i]
+        security_data = prepare_input_data(data_all, security)
+        trade(security_data, security, weights)
+        ret=trade(security_data, security, weights)
+        buys = [ret[x][0] for x in range(len(ret))]
+        print(np.mean(buys))
+        #mean=np.mean(ret[0])
+        #print(mean)
+        ret_total.append(ret)
+        
+    return ret_total
     
     
+    
+#%%   
+securities = lh.getTickers()
+#%%
+sec=main_trading(data, securities)
+ #%%
 
 security="STOCK2"
 df3=prepare_input_data(data, security)
