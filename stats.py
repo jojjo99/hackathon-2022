@@ -9,6 +9,7 @@ Created on Fri Mar  4 09:51:40 2022
 import linchackathon as lh
 import pandas as pd
 import seaborn as sns
+from datetime import datetime
 
 lh.getStockHistory('all', 30)
 data = pd.DataFrame(lh.getStockHistory('all', 30))
@@ -31,3 +32,7 @@ stocks_sharpe = stocks_sharpe.sort_values(ascending=False)
 
 
 #%%
+
+df1 = stocks['BOND2'].dropna()
+df1 = df1.to_datetime
+

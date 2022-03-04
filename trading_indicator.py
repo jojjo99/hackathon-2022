@@ -5,6 +5,7 @@ https://www.ig.com/en/trading-strategies/10-trading-indicators-every-trader-shou
 These are implemented in a class to be used straight on time series.
 """
 import numpy as np
+import pandas as pd
 
 class TradingIndicator:
     
@@ -67,7 +68,16 @@ class TradingIndicator:
         rsi = 100 - (100/(1 + rsi))
         return rsi
                 
-        
+    def ATR(self, periods = 22):
+      data = self.df  
+      high_low = self.data['High'] - self.data['Low']
+      high_close = np.abs(self.data['High'] - self.data['Close'].shift())
+      low_close = np.abs(self.data['Low'] - self.data['Close'].shift())
+      ranges = pd.concat([high_low, high_close, low_close], axis=1)
+      true_range = np.max(ranges, axis=1)
+      ATR = true_range.rolling(22).sum()/14
+      self.data['ATR'] = ATR
+      return data
         
         
         
