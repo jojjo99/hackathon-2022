@@ -96,9 +96,7 @@ df2["sell"] = (df2["sign"] < df2["sign"].shift(1))*1
 
 
 
-def prepare_input_data(data_all, security):
-    data_all ['Close' ] = (data_all ['bidClose'] + data_all ['askClose'] ) / 2
-    df = data_all.pivot('time', 'symbol', 'Close')
+def prepare_input_data(df, security):
     stock = df[security].to_frame()
     stock.index=pd.to_datetime(stock.index)
     stock_new=stock.resample('1H').last() #
@@ -141,7 +139,13 @@ def backtest_macd(df, stock):
 
 
 def trade(df, stock, weights):
-    long=False
+    #current_portfolio = lh.getPortfolio()
+   # print(current_portfolio)
+    long=True
+    #if stock in current_portfolio:
+        #long=True
+    #else:
+        #long = False
     enter_price = 0
     close_price = 0
     enter_date = 0
@@ -152,12 +156,14 @@ def trade(df, stock, weights):
         weight = weights[stock]
         amount = lh.getSaldo()*weight
         nbr_share = (amount/df[stock].iloc[-1]).round()
-        lh.buyStock(stock, nbr_share)
+        print(stock, nbr_share)
+        #lh.buyStock(stock, nbr_share)
         enter_price = df[stock].iloc[-1]
         enter_date= df.index[-1]
         
     elif(df["sell"].iloc[-1]==1 & long==True & (df["rsi"].iloc[-1]>30)):
-        lh.sellStock(stock, nbr_share)
+        print(stock, nbr_share)
+        #lh.sellStock(stock, nbr_share)
         stop_price = df[stock].iloc[-1]
         exit_date=df.index[-1]
         returns.append([(stop_price-enter_price)/enter_price, enter_date, exit_date])
@@ -184,16 +190,23 @@ def main_trading(data_all, securities):
 
     # Trade bonds
     ret_total = []
+    data_all ['Close' ] = (data_all ['bidClose'] + data_all ['askClose'] ) / 2
+    df = data_all.pivot('time', 'symbol', 'Close')
     for i in range(0,2):
         security = securities[i]
         security_data = prepare_input_data(data_all, security)
-        trade(security_data, security, weights)
-        ret=trade(security_data, security, weights)
-        buys = [ret[x][0] for x in range(len(ret))]
-        print(np.mean(buys))
+        #trade(security_data, security, weights)
         #mean=np.mean(ret[0])
         #print(mean)
-        ret_total.append(ret)
+    # Trade stocks
+
+#%%
+    for i in range(3,9):
+            security = securities[i]
+            security_data = prepare_input_data(data_all, security)
+            trade(security_data, security, weights)
+            #mean=np.mean(ret[0])
+            #print(mean)
         
     return ret_total
     
@@ -202,7 +215,14 @@ def main_trading(data_all, securities):
 #%%   
 securities = lh.getTickers()
 #%%
-sec=main_trading(data, securities)
+def main (securities):
+    while True:
+        data = pd.DataFrame(lh.getStockHistory('all', 30))
+        main_trading(data, securities)
+#%%
+main_trading(data.iloc[:10000], securities)
+    
+    
  #%%
 
 security="STOCK2"
