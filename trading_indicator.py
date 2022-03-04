@@ -76,11 +76,16 @@ class TradingIndicator:
       ranges = pd.concat([high_low, high_close, low_close], axis=1)
       true_range = np.max(ranges, axis=1)
       ATR = true_range.rolling(22).sum()/14
-      self.data['ATR'] = ATR
+      data['ATR'] = ATR
       return data
         
-        
-        
+    def chandelier_exit(self, multipl = 3):
+        data = self.df
+        data["Max_high"] = self.data.rolling(22, min_periods=22)['High'].max()  
+        data["Ch_exit_long"] = data["Max_high"] - data["ATR"] * 3
+        return data
+    
+    
         
         
         
