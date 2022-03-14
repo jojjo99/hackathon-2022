@@ -72,23 +72,110 @@ class TradingIndicator:
     
 #%%
 def prepare_input_data(df, security):
+    df.index=pd.to_datetime(df.time)
+
+    df=df.resample('1H').last() #
+    df=df.dropna()
     df['Close' ] = (df ['bidClose'] + df ['askClose'] ) / 2
-    df['High']=(data['bidHigh']+ data['askHigh'])/2
-    df['Low']=(data['bidLow']+ data['bidLow'])/2
-    
+    df['High']=(df['bidHigh']+ df['askHigh'])/2
+    df['Low']=(df['bidLow']+ df['bidLow'])/2
     high_close = np.abs(df['High']-df['Close'].shift())
     low_close = np.abs(df['Low']-df['Close'].shift())
     high_low = df['High']-df['Low']
     ranges = pd.concat([high_low, high_close, low_close], axis=1)
     true_range = np.max(ranges, axis=1)
-    atr = true_range.rolling(14).sum()/14
+    atr = true_range.rolling(10).sum()/10
     df["ATR"]=atr
     
-    df["Max_high"] = df["High"].rolling(22, min_periods=22).max()  
+    df["Max_high"] = df["High"].rolling(10, min_periods=10).max()  
     df["Ch_exit_long"] = df["Max_high"] - df["ATR"] * 3
+
+
+    df['difference'] = df['Close'].diff(1)
+    df['pct_change'] = df["Close"].pct_change() 
+    df['pos'] = df.difference.copy()
+    df['neg'] = df.difference.copy()
+    
+    df['pos'][df['pos'] < 0] = 0 
+    df['neg'][df['neg'] > 0] = 0 
+    
+   # df.loc[df['pos'] < 0, 'pos'] = 0
+   # df.loc[df['neg'] < 0, 'neg'] = 0
+    
+    df['avg_gain'] = df['pos'].rolling(window=14).mean()
+    df['avg_loss'] = abs(df['neg'].rolling(window=14).mean())
+    df['RS'] = df['avg_gain'] / df['avg_loss']
+    df['rsi'] = 100.0 - (100.0 / (1.0 + df['RS']))
+    ind = TradingIndicator(df)
+    df = ind.macd(12, 26, 9, col="Close")
+    signal = df["signal"]
+    macd= df["macd"]
+    
+    df["diff"]=(signal-macd)
+    df["sign"] = np.sign(df["diff"])
+    df["buy"] = (df["sign"] > df["sign"].shift(1))*1
+    df["sell"] = (df["sign"] < df["sign"].shift(1))*1
+
+
+
     return df
 
+def backtest_macd_old(df, stock):
+    long=False
+    enter_price = 0
+    close_price = 0
+    enter_date = 0
+    exit_date = 0
+    returns = []
+    for i in range(len(df)):
+        if (df["buy"].iloc[i]==1 & long==False & (df["rsi"].iloc[i]<70)):
+            long = True
+            enter_price = df[stock].iloc[i]
+            enter_date= df.index[i]
+        elif(df["sell"].iloc[i]==1 & long==True & (df["rsi"].iloc[i]>30)):
+            stop_price = df[stock].iloc[i]
+            exit_date=df.index[i]
+            returns.append([(stop_price-enter_price)/enter_price, enter_date, exit_date])
+            long=False
+            
+    return returns
+
+def backtest_macd(df, stock):
+    long=False
+    enter_price = 0
+    close_price = 0
+    enter_date = 0
+    exit_date = 0
+    returns = []
+    for i in range(len(df)):
+        if (df["buy"].iloc[i]==1 & long==False & (df["rsi"].iloc[i]<70)):
+            long = True
+            enter_price = df[stock].iloc[i]
+            enter_date= df.index[i]
+        elif((df["Ch_exit_long"].iloc[i] > df['Close'].iloc[i]) & long==True):
+            stop_price = df[stock].iloc[i]
+            exit_date=df.index[i]
+            returns.append([(stop_price-enter_price)/enter_price, enter_date, exit_date])
+            long=False
+    ret=np.mean([x[0] for x in returns])     
+    print(ret)
+    return returns
     
+
+
+#%%
+ticker="BOND1"
+df = data[data["symbol"]==ticker]
+df2=prepare_input_data(df, ticker)
+#df2=df2.dropna()
+return_old=backtest_macd_old(df2, "Close")
+returns=backtest_macd(df2, "Close")
+
+#%%
+ticker="BOND1"
+df = data[data["symbol"]==ticker]
+df2=prepare_input_data(df, ticker)
+
 #%%
     stock_new=stock_new.dropna()
     ind = TradingIndicator(stock_new)
@@ -109,11 +196,7 @@ def prepare_input_data(df, security):
 #%%
 data = pd.DataFrame(ls.getStockHistory('all', 100) )
 #%%
-ticker="BOND1"
-df = data[data["symbol"]==ticker]
-#%%
 
-df2=prepare_input_data(df, ticker)
 #%%
 import numpy as np
 data ['Close' ] = (data ['bidClose'] + data ['askClose'] ) / 2
@@ -286,3 +369,108 @@ sell_data = df3.loc[buys]
 #plt.plot(df3[security], color="orange")
 #plt.scatter(buys, buys_data[security] ,color="b")
 #plt.scatter(sell, sell_data[security] ,color="r")
+
+def prepare_input_data(df):
+    df.index=pd.to_datetime(df.time)
+
+    df=df.resample('1H').last() #
+    df=df.dropna()
+    df['Close' ] = (df ['bidClose'] + df ['askClose'] ) / 2
+    df['High']=(df['bidHigh']+ df['askHigh'])/2
+    df['Low']=(df['bidLow']+ df['bidLow'])/2
+    high_close = np.abs(df['High']-df['Close'].shift())
+    low_close = np.abs(df['Low']-df['Close'].shift())
+    high_low = df['High']-df['Low']
+    ranges = pd.concat([high_low, high_close, low_close], axis=1)
+    true_range = np.max(ranges, axis=1)
+    atr = true_range.rolling(10).sum()/10
+    df["ATR"]=atr
+    
+    df["Max_high"] = df["High"].rolling(10, min_periods=10).max()  
+    df["Ch_exit_long"] = df["Max_high"] - df["ATR"] * 3
+
+
+    df['difference'] = df['Close'].diff(1)
+    df['pct_change'] = df["Close"].pct_change() 
+    df['pos'] = df.difference.copy()
+    df['neg'] = df.difference.copy()
+    
+    df['pos'][df['pos'] < 0] = 0 
+    df['neg'][df['neg'] > 0] = 0 
+    
+   # df.loc[df['pos'] < 0, 'pos'] = 0
+   # df.loc[df['neg'] < 0, 'neg'] = 0
+    
+    df['avg_gain'] = df['pos'].rolling(window=14).mean()
+    df['avg_loss'] = abs(df['neg'].rolling(window=14).mean())
+    df['RS'] = df['avg_gain'] / df['avg_loss']
+    df['rsi'] = 100.0 - (100.0 / (1.0 + df['RS']))
+    ind = TradingIndicator(df)
+    df = ind.macd(12, 26, 9, col="Close")
+    signal = df["signal"]
+    macd= df["macd"]
+    
+    df["diff"]=(signal-macd)
+    df["sign"] = np.sign(df["diff"])
+    df["buy"] = (df["sign"] > df["sign"].shift(1))*1
+    df["sell"] = (df["sign"] < df["sign"].shift(1))*1
+
+
+
+    return df
+
+def trade(df, stock, weights):
+    current_portfolio = lh.getPortfolio()
+    if stock in current_portfolio:
+        long=True
+    else:
+        long = False
+    enter_price = 0
+    close_price = 0
+    enter_date = 0
+    exit_date = 0
+    returns = []
+    if (df["buy"].iloc[-1]==1 & long==False & (df["rsi"].iloc[-1]<70)):
+        long = True
+        weight = weights
+        amount = lh.getSaldo()*weight
+        nbr_share = (amount/df[stock].iloc[-1]).round()
+        print(stock, nbr_share)
+        lh.buyStock(stock, nbr_share)
+        enter_price = df[stock].iloc[-1]
+        enter_date= df.index[-1]
+        
+    elif((df["Ch_exit_long"].iloc[i] > df['Close'].iloc[i]) & long==True):
+        print(stock, nbr_share)
+        lh.sellStock(stock, nbr_share)
+        stop_price = df[stock].iloc[-1]
+        exit_date=df.index[-1]
+        returns.append([(stop_price-enter_price)/enter_price, enter_date, exit_date])
+        long=False
+            
+    return returns
+
+def main_trading(data_all,stock):
+    bond_weights = 0.4
+    stock_weights = 0.6
+    init_cash = 100000
+    bond_cash = bond_weights*init_cash
+    stock_cash = stock_weights*init_cash
+    weightA = 0.1 # Top performing, Stock 7, 1, 3, 4
+    trade(data_all,stock, weightA)
+
+
+#%%
+ticker='STOCK7'
+df = data[data["symbol"]==ticker]
+df2=prepare_input_data(df)
+
+#%%
+def main (stock):
+    while True:
+        data = pd.DataFrame(lh.getStockHistory('all', 30))
+        df = data[data["symbol"]==ticker]
+        df2=prepare_input_data(df)
+        main_trading(df2, stock)
+        
+main(stock)
